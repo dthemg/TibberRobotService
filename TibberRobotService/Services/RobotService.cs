@@ -6,7 +6,7 @@ namespace TibberRobotService.Services;
 
 public class RobotService: IRobotService
 {
-    private record Line(int StartX, int StartY, int EndX, int EndY);
+    private record Line(int StartX, int StartY, int EndX, int EndY, bool isHorizontal);
     private record Position(int X, int Y);
 
     private readonly IRobotMovementRepository _robotMovementRepository;
@@ -18,57 +18,124 @@ public class RobotService: IRobotService
 
     public async Task<RobotMovementSummary> PerformRobotMovement(MovementRequest request)
     {
-        var path = new List<Line>();
+        // We are assuming we are cleaning the starting square
+        var movement = new List<Line>() { new (request.Start.X, request.Start.Y, request.Start.X, request.Start.Y, true)};
+        var uniquePositionsVisited = 1;
 
         var previousPosition = new Position(request.Start.X, request.Start.Y);
         foreach (var command in request.Commands)
         {
-            Position newPosition = command.Direction switch
+            Line newLine = command.Direction switch
             {
-                Direction.East => new Position(previousPosition.X + command.Steps, previousPosition.Y),
-                Direction.North => new Position(previousPosition.X, previousPosition.Y + command.Steps),
-                Direction.West => new Position(previousPosition.X - command.Steps, previousPosition.Y),
-                Direction.South => new Position(previousPosition.X, previousPosition.Y - command.Steps),
-                _ => throw new ArgumentException("Unable to parse direction", nameof(request)),
+                // Check these badboys afterwards
+                Direction.East => 
+                    new Line(previousPosition.X + 1, previousPosition.Y, previousPosition.X + command.Steps, previousPosition.Y, true),
+                Direction.North => 
+                    new Line(previousPosition.X, previousPosition.Y + 1, previousPosition.X, previousPosition.Y + command.Steps, false),
+                Direction.West => 
+                    new Line(previousPosition.X - command.Steps, previousPosition.Y, previousPosition.X - 1, previousPosition.Y, true),
+                Direction.South => 
+                    new Line(previousPosition.X, previousPosition.Y - command.Steps, previousPosition.X, previousPosition.Y - 1, false),
+                _ => throw new ArgumentException("Unable to parse direction", nameof(request))
             };
 
-            path.Add(new Line(previousPosition.X, previousPosition.Y, newPosition.X, newPosition.Y));
-        }
+            uniquePositionsVisited += ComputeNumberOfNewVisitedPositions(newLine, movement);
 
-        var uniqueVisitedLocations = ComputeNumberOfVisitedLocations(path);
+            // TODO - set the previous position as well!
+            previousPosition = command.Direction switch
+            {
+                Direction.East => new Position(newLine.EndX, newLine.EndY),
+                Direction.North => new Position(newLine.EndX, newLine.EndY),
+                Direction.West => new Position(newLine.StartX, newLine.StartY),
+                Direction.South => new Position(newLine.StartX, newLine.StartY),
+                _ => throw new ArgumentException("Unable to parse direction", nameof(request))
+            };
+            movement.Add(newLine);
+        }
 
         var duration = 0.001f;
 
         var addedEntity = await _robotMovementRepository.AddMovementSummary(
-            request.Commands.Count, uniqueVisitedLocations, duration);
+            request.Commands.Count, uniquePositionsVisited, duration);
 
         return ToDto(addedEntity);
     }
 
-    private static int ComputeNumberOfVisitedLocations(List<Line> movementPath)
+    private static int ComputeNumberOfNewVisitedPositions(Line newMovement, List<Line> previousMovement)
     {
-        // Strategy 1: add all steps, then remove intersections
-        var numberOfVisitedLocations = 0;
-        for (int i = 1; i < movementPath.Count; i++)
+        var intersectionPoints = new HashSet<Position>();
+        
+        var undisturbedMovement = newMovement.EndX - newMovement.StartX + newMovement.EndY - newMovement.StartY;
+
+        foreach (var line in previousMovement)
         {
-            var line = movementPath[i];
-            var lineDistance = Math.Abs(line.StartX - line.EndX) + Math.Abs(line.StartY - line.EndY);
-            numberOfVisitedLocations += lineDistance;
-
-            var lineHorizontal = line.StartX == line.EndX;
-
-            for (int j = 0; j < i; j++)
+            if (newMovement.isHorizontal && line.isHorizontal && newMovement.StartY == line.StartY)
             {
-                var cross = movementPath[j];
-                var crossingHorizontal = cross.StartX == cross.EndX;
-
-                if (lineHorizontal)
+                var overlap = OverlapInidices(newMovement.StartX, newMovement.EndX, line.StartX, line.EndX)
+                    .Select(x => new Position(x, line.StartY));
+                intersectionPoints.UnionWith(overlap);
+            } else if (!newMovement.isHorizontal && !line.isHorizontal && newMovement.StartX == line.StartX)
+            {
+                var overlap = OverlapInidices(newMovement.StartY, newMovement.EndY, line.StartY, line.EndY)
+                    .Select(x => new Position(line.StartX, x));
+                intersectionPoints.UnionWith(overlap);
+            } else if (newMovement.isHorizontal && !line.isHorizontal)
+            {
+                if (line.StartX >= newMovement.StartX &&
+                    line.StartX <= newMovement.EndX &&
+                    line.StartY <= newMovement.StartY &&
+                    line.EndY <= newMovement.EndY)
                 {
-
+                    intersectionPoints.Add(new Position(line.StartX, newMovement.StartY));
+                    Console.WriteLine($"Intersection point at ({line.StartX}, {newMovement.StartY})");
+                }
+            } else if (!newMovement.isHorizontal && line.isHorizontal)
+            {
+                if (line.StartX <= newMovement.StartX &&
+                    line.EndX >= newMovement.StartX &&
+                    line.StartY <= newMovement.StartY &&
+                    line.EndY >= newMovement.EndY)
+                {
+                    intersectionPoints.Add(new Position(newMovement.StartX, line.StartY));
+                    Console.WriteLine($"Intersection point at ({newMovement.StartX}, {line.StartY})");
                 }
             }
         }
-        return 1;
+
+        // add 1 to include both edges
+        return undisturbedMovement - intersectionPoints.Count + 1;
+    }
+
+    private static IEnumerable<int> OverlapInidices(int rangeStart, int rangeEnd, int overlapStart, int overlapEnd)
+    {
+        var emptyReturn = Enumerable.Empty<int>();
+
+        // below everything
+        if (overlapStart < rangeStart && overlapEnd < rangeStart)
+            return emptyReturn;
+
+        // above everything
+        if (overlapStart > rangeEnd && overlapEnd > rangeEnd)
+            return emptyReturn;
+
+        // partially inside lower range
+        if (overlapStart <= rangeStart && overlapEnd >= rangeStart && overlapEnd >= rangeEnd)
+            return Enumerable.Range(rangeStart, overlapEnd);
+
+        // completely inside range
+        if (overlapStart >= rangeStart && overlapEnd <= rangeEnd)
+            return Enumerable.Range(overlapStart, overlapEnd);
+
+        // partially inside upper range
+        if (overlapStart >= rangeStart && overlapStart <= rangeEnd && overlapEnd >= rangeEnd)
+            return Enumerable.Range(overlapEnd, rangeEnd);
+
+        // range completely in overlap
+        if (overlapStart <= rangeStart && overlapEnd >= rangeEnd)
+            return Enumerable.Range(overlapStart, overlapEnd);
+
+        return emptyReturn;
+
     }
 
     private static RobotMovementSummary ToDto(Db.MovementSummary dbModel)
