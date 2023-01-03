@@ -19,7 +19,10 @@ public class RobotService: IRobotService
     public async Task<RobotMovementSummary> PerformRobotMovement(MovementRequest request)
     {
         // We are assuming we are cleaning the starting square
-        var movement = new List<Line>() { new (request.Start.X, request.Start.Y, request.Start.X, request.Start.Y, true)};
+        var movement = new List<Line>() { 
+            new (request.Start.X, request.Start.Y, request.Start.X, request.Start.Y, true),
+            new (request.Start.X, request.Start.Y, request.Start.X, request.Start.Y, false)
+        };
         var uniquePositionsVisited = 1;
 
         var previousPosition = new Position(request.Start.X, request.Start.Y);
@@ -27,7 +30,6 @@ public class RobotService: IRobotService
         {
             Line newLine = command.Direction switch
             {
-                // Check these badboys afterwards
                 Direction.East => 
                     new Line(previousPosition.X + 1, previousPosition.Y, previousPosition.X + command.Steps, previousPosition.Y, true),
                 Direction.North => 
@@ -39,9 +41,9 @@ public class RobotService: IRobotService
                 _ => throw new ArgumentException("Unable to parse direction", nameof(request))
             };
 
-            uniquePositionsVisited += ComputeNumberOfNewVisitedPositions(newLine, movement);
+            var newPositions = ComputeNumberOfNewVisitedPositions(newLine, movement);
+            uniquePositionsVisited += newPositions;
 
-            // TODO - set the previous position as well!
             previousPosition = command.Direction switch
             {
                 Direction.East => new Position(newLine.EndX, newLine.EndY),
@@ -84,7 +86,7 @@ public class RobotService: IRobotService
                 if (line.StartX >= newMovement.StartX &&
                     line.StartX <= newMovement.EndX &&
                     line.StartY <= newMovement.StartY &&
-                    line.EndY <= newMovement.EndY)
+                    line.EndY >= newMovement.StartY)
                 {
                     intersectionPoints.Add(new Position(line.StartX, newMovement.StartY));
                     Console.WriteLine($"Intersection point at ({line.StartX}, {newMovement.StartY})");
@@ -93,8 +95,8 @@ public class RobotService: IRobotService
             {
                 if (line.StartX <= newMovement.StartX &&
                     line.EndX >= newMovement.StartX &&
-                    line.StartY <= newMovement.StartY &&
-                    line.EndY >= newMovement.EndY)
+                    line.StartY >= newMovement.StartY &&
+                    line.StartY <= newMovement.EndY)
                 {
                     intersectionPoints.Add(new Position(newMovement.StartX, line.StartY));
                     Console.WriteLine($"Intersection point at ({newMovement.StartX}, {line.StartY})");
@@ -103,7 +105,8 @@ public class RobotService: IRobotService
         }
 
         // add 1 to include both edges
-        return undisturbedMovement - intersectionPoints.Count + 1;
+        var toAdd = undisturbedMovement - intersectionPoints.Count + 1;
+        return toAdd;
     }
 
     private static IEnumerable<int> OverlapInidices(int rangeStart, int rangeEnd, int overlapStart, int overlapEnd)
@@ -119,25 +122,27 @@ public class RobotService: IRobotService
             return emptyReturn;
 
         // partially inside lower range
-        if (overlapStart <= rangeStart && overlapEnd >= rangeStart && overlapEnd >= rangeEnd)
-            return Enumerable.Range(rangeStart, overlapEnd);
+        if (overlapStart <= rangeStart && overlapEnd >= rangeStart && overlapEnd <= rangeEnd)
+            return Range(rangeStart, overlapEnd);
 
-        // completely inside range
+        // overlap completely inside range
         if (overlapStart >= rangeStart && overlapEnd <= rangeEnd)
-            return Enumerable.Range(overlapStart, overlapEnd);
+            return Range(overlapStart, overlapEnd);
 
         // partially inside upper range
         if (overlapStart >= rangeStart && overlapStart <= rangeEnd && overlapEnd >= rangeEnd)
-            return Enumerable.Range(overlapEnd, rangeEnd);
+            return Range(overlapStart, rangeEnd);
 
         // range completely in overlap
         if (overlapStart <= rangeStart && overlapEnd >= rangeEnd)
-            return Enumerable.Range(overlapStart, overlapEnd);
+            return Range(rangeStart, rangeEnd);
 
         return emptyReturn;
 
     }
 
+    private static IEnumerable<int> Range(int start, int end) => Enumerable.Range(start, end - start + 1);
+    
     private static RobotMovementSummary ToDto(Db.MovementSummary dbModel)
     {
         return new RobotMovementSummary(

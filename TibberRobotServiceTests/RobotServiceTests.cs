@@ -1,6 +1,5 @@
 using FluentAssertions;
 using NSubstitute;
-using NSubstitute.Routing.Handlers;
 using TibberRobotService.Interfaces;
 using TibberRobotService.Models;
 using TibberRobotService.Services;
@@ -77,7 +76,7 @@ namespace TibberRobotServiceTests
             { Direction = direction, Steps= steps };
 
         [Test]
-        public async Task PerformRobotMovement_should_handle_horizontal_crossings_correctly()
+        public async Task PerformRobotMovement_should_handle_crossings_correctly()
         {
             var request = new MovementRequest()
             {
@@ -99,10 +98,73 @@ namespace TibberRobotServiceTests
                 }
             };
             
-            // Current status! This is failing miserably!
+            var summary = await _sut.PerformRobotMovement(request);
+            summary.Result.Should().Be(44);
+        }
+
+        [Test]
+        public async Task PerformRobotMovement_should_handle_complete_overlaps_correctly()
+        {
+            var request = new MovementRequest()
+            {
+                Start = new() { X = 0, Y = 0 },
+                Commands = new()
+                {
+                    Move(Direction.East, 10),
+                    Move(Direction.West, 10),
+                    Move(Direction.South, 10),
+                    Move(Direction.North, 10),
+                }
+            };
 
             var summary = await _sut.PerformRobotMovement(request);
-            summary.Result.Should().Be(33);
+            summary.Result.Should().Be(21);
+        }
+
+        [Test]
+        public async Task PerformRobotMovement_should_handle_partial_horizontal_overlaps_correctly()
+        {
+            var request = new MovementRequest()
+            {
+                Start = new() { X = 0, Y = 0 },
+                Commands = new()
+                {
+                    Move(Direction.East, 10),
+                    Move(Direction.North, 1),
+                    Move(Direction.East, 2),
+                    Move(Direction.South, 1),
+                    Move(Direction.West, 13),
+                    Move(Direction.East, 3),
+                    Move(Direction.East, 5),
+                    Move(Direction.East, 5)
+                }
+            };
+
+            var summary = await _sut.PerformRobotMovement(request);
+            summary.Result.Should().Be(17);
+        }
+
+        [Test]
+        public async Task PerformRobotMovement_should_handle_partial_vertical_overlaps_correctly()
+        {
+            var request = new MovementRequest()
+            {
+                Start = new() { X = 0, Y = 0 },
+                Commands = new()
+                {
+                    Move(Direction.North, 10),
+                    Move(Direction.West, 1),
+                    Move(Direction.North, 2),
+                    Move(Direction.East, 1),
+                    Move(Direction.South, 13),
+                    Move(Direction.North, 3),
+                    Move(Direction.North, 5),
+                    Move(Direction.North, 5)
+                }
+            };
+
+            var summary = await _sut.PerformRobotMovement(request);
+            summary.Result.Should().Be(17);
         }
     }
 }
