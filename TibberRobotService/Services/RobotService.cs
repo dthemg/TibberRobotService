@@ -73,12 +73,15 @@ public class RobotService: IRobotService
         };
     }
 
+    // private record Line1D(int start, int stop);
+
     private static int ComputeNumberOfNewVisitedPositions(Line newMovement, List<Line> previousMovement)
     {
         // add 1 to include the starting point
         var pointsOnLine = newMovement.EndX - newMovement.StartX + newMovement.EndY - newMovement.StartY + 1;
 
-        var intersectionPoints = new HashSet<Position>();
+        // instead store starting and stopping points, and then sort those badboys and we should be okay
+        var intersectionPoints = new HashSet<int>();
         foreach (var line in previousMovement)
         {
             if (newMovement.IsHorizontal)
@@ -91,31 +94,28 @@ public class RobotService: IRobotService
                 CheckVerticalIntersection(newMovement, line, intersectionPoints);
             }
         }
-
         return pointsOnLine - intersectionPoints.Count;
     }
 
-    private static void CheckHorizontalOverlap(Line newMovement, Line lineToCheck, HashSet<Position> intersectionPoints)
+    private static void CheckHorizontalOverlap(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
     {
         if (lineToCheck.IsHorizontal && newMovement.StartY == lineToCheck.StartY)
         {
-            var overlap = OverlapInidices(newMovement.StartX, newMovement.EndX, lineToCheck.StartX, lineToCheck.EndX)
-                .Select(x => new Position(x, lineToCheck.StartY));
+            var overlap = OverlapInidices(newMovement.StartX, newMovement.EndX, lineToCheck.StartX, lineToCheck.EndX);
             intersectionPoints.UnionWith(overlap);
         }
     }
 
-    private static void CheckVerticalOverlap(Line newMovement, Line lineToCheck, HashSet<Position> intersectionPoints)
+    private static void CheckVerticalOverlap(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
     {
         if (!lineToCheck.IsHorizontal && newMovement.StartX == lineToCheck.StartX)
         {
-            var overlap = OverlapInidices(newMovement.StartY, newMovement.EndY, lineToCheck.StartY, lineToCheck.EndY)
-                .Select(x => new Position(lineToCheck.StartX, x));
+            var overlap = OverlapInidices(newMovement.StartY, newMovement.EndY, lineToCheck.StartY, lineToCheck.EndY); ;
             intersectionPoints.UnionWith(overlap);
         }
     }
 
-    private static void CheckHorizontalIntersection(Line newMovement, Line lineToCheck, HashSet<Position> intersectionPoints)
+    private static void CheckHorizontalIntersection(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
     {
         if (!lineToCheck.IsHorizontal &&
             lineToCheck.StartX >= newMovement.StartX &&
@@ -123,11 +123,11 @@ public class RobotService: IRobotService
             lineToCheck.StartY <= newMovement.StartY &&
             lineToCheck.EndY >= newMovement.StartY)
         { 
-            intersectionPoints.Add(new Position(lineToCheck.StartX, newMovement.StartY));
+            intersectionPoints.Add(lineToCheck.StartX);
         }
     }
 
-    private static void CheckVerticalIntersection(Line newMovement, Line lineToCheck, HashSet<Position> intersectionPoints)
+    private static void CheckVerticalIntersection(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
     {
         if (lineToCheck.IsHorizontal &&
             lineToCheck.StartX <= newMovement.StartX &&
@@ -135,7 +135,7 @@ public class RobotService: IRobotService
             lineToCheck.StartY >= newMovement.StartY &&
             lineToCheck.StartY <= newMovement.EndY)
         {
-            intersectionPoints.Add(new Position(newMovement.StartX, lineToCheck.StartY));
+            intersectionPoints.Add(lineToCheck.StartY);
         }
     }
 

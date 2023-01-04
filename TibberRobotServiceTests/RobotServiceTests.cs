@@ -171,7 +171,7 @@ namespace TibberRobotServiceTests
         public async Task PerformRobotMovement_should_be_performant_in_worst_case_scenario()
         {
             var steps = 100000;
-            var commands = 10;
+            var commands = 100;
             var movement = new List<Movement>();
             // Maximize number of overlapping points
             for (int i = 0; i < commands; i++)
