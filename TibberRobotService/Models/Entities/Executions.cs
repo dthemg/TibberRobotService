@@ -2,7 +2,7 @@
 
 namespace TibberRobotService.Models.Entities;
 
-public class MovementSummary
+public class Executions
 {
     [Key]
     public Guid Id { get; set; }

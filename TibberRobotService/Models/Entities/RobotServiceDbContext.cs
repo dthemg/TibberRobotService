@@ -9,5 +9,5 @@ public class RobotServiceDbContext: DbContext
     {
     }
 
-    public DbSet<MovementSummary> MovementSummaries { get; set; }
+    public DbSet<Executions> MovementSummaries { get; set; }
 }

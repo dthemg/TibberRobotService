@@ -5,7 +5,9 @@ VisualStudioVersion = 17.4.33205.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TibberRobotService", "TibberRobotService\TibberRobotService.csproj", "{E59033ED-2111-47F8-8E65-B9E6D05DD233}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TibberRobotServiceTests", "TibberRobotServiceTests\TibberRobotServiceTests.csproj", "{44A810BC-084E-41F9-8AE8-6AE105610D71}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TibberRobotServiceTests", "TibberRobotServiceTests\TibberRobotServiceTests.csproj", "{44A810BC-084E-41F9-8AE8-6AE105610D71}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestPerformance", "TestPerformance\TestPerformance.csproj", "{2555C2C2-3805-4419-8239-8370ACDE4AFD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{44A810BC-084E-41F9-8AE8-6AE105610D71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{44A810BC-084E-41F9-8AE8-6AE105610D71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{44A810BC-084E-41F9-8AE8-6AE105610D71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

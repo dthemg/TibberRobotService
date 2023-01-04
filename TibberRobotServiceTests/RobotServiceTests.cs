@@ -17,7 +17,7 @@ namespace TibberRobotServiceTests
         {
             _movementRepository = Substitute.For<IRobotMovementRepository>();
             _movementRepository.AddMovementSummary(default, default, default)
-                .ReturnsForAnyArgs(x => new Db.MovementSummary
+                .ReturnsForAnyArgs(x => new Db.Executions
                 {
                     Commands = (int)x[0],
                     Result = (int)x[1],
@@ -62,18 +62,18 @@ namespace TibberRobotServiceTests
                     new()
                     {
                         Steps = steps,
-                        Direction = Direction.West
+                        Direction = direction
                     }
                 }
             };
 
             var summary = await _sut.PerformRobotMovement(request);
             summary.Commands.Should().Be(1);
-            summary.Result.Should().Be(steps + 1); 
+            summary.Result.Should().Be(steps + 1);
         }
 
-        private Movement Move(Direction direction, int steps) => new() 
-            { Direction = direction, Steps= steps };
+        private Movement Move(Direction direction, int steps) => new()
+        { Direction = direction, Steps = steps };
 
         [Test]
         public async Task PerformRobotMovement_should_handle_crossings_correctly()
@@ -97,7 +97,7 @@ namespace TibberRobotServiceTests
                     Move(Direction.East, 2)
                 }
             };
-            
+
             var summary = await _sut.PerformRobotMovement(request);
             summary.Result.Should().Be(44);
         }
@@ -165,6 +165,34 @@ namespace TibberRobotServiceTests
 
             var summary = await _sut.PerformRobotMovement(request);
             summary.Result.Should().Be(17);
+        }
+
+        [Test]
+        public async Task PerformRobotMovement_should_be_performant_in_worst_case_scenario()
+        {
+            var steps = 100000;
+            var commands = 10;
+            var movement = new List<Movement>();
+            // Maximize number of overlapping points
+            for (int i = 0; i < commands; i++)
+            {
+                if (i%2 == 0)
+                {
+                    movement.Add(Move(Direction.East, steps));
+                } else
+                {
+                    movement.Add(Move(Direction.West, steps));
+                }
+            }
+            var request = new MovementRequest()
+            {
+                Start = new() { X = 0, Y = 0 },
+                Commands = movement
+            };
+
+            var summary = await _sut.PerformRobotMovement(request);
+            summary.Result.Should().Be(steps + 1);
+            summary.Duration.Should().BeLessThan(0.2f);
         }
     }
 }
