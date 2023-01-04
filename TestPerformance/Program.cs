@@ -10,6 +10,7 @@ var random = new Random();
 var service = new RobotService(repo);
 
 var commands = 10000;
+var maxStep = 100000;
 var movementBackForth = new List<Movement>();
 var movementRandom = new List<Movement>();
 
@@ -18,13 +19,13 @@ var alternatives = Enum.GetValues(typeof(Direction));
 // Maximize number of overlapping points
 for (int i = 0; i < commands; i++)
 {
-    var steps = 100000;
+    var steps = maxStep;
     if (i % 2 == 0)
         movementBackForth.Add(Move(Direction.East, steps));
     else
         movementBackForth.Add(Move(Direction.West, steps));
         
-    steps = random.Next(100000);
+    steps = random.Next(maxStep);
     var direction = (Direction)alternatives.GetValue(random.Next(alternatives.Length));
     movementRandom.Add(Move(direction, steps));
 }
