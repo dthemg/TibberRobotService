@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using TibberRobotService.Interfaces;
 using TibberRobotService.Models;
 using Db = TibberRobotService.Models.Entities;
@@ -74,8 +73,20 @@ public class RobotService: IRobotService
         };
     }
 
+    private record Point1D(int Start); 
+
+    private record Line1D(int Start, int End);
+
+    private class IntersectionPoint
+    {
+        public int? End { get; set; } = null;
+    }
+
     private static int ComputeNumberOfNewVisitedPositions(Line newMovement, List<Line> previousMovement)
     {
+
+        // NEXT IMPROVEMENT - SORT ALL PREVIOUS MOVEMENT SO THEY CAN BE FETCHED FASTER!!
+
         // add 1 to include the starting point
         var pointsOnLine = newMovement.EndX - newMovement.StartX + newMovement.EndY - newMovement.StartY + 1;
 
@@ -85,74 +96,78 @@ public class RobotService: IRobotService
         else
             (startIdx, endIdx) = (newMovement.StartY, newMovement.EndY);
 
-        // instead store starting and stopping points, and then sort those badboys and we should be okay
-        // only add new points?
-        var intersections = new HashSet<int>();
-        var overlaps = new List<Line1D>();
+        var orderedCrossing = new SortedDictionary<int, int?>();
 
         foreach (var line in previousMovement)
         {
             if (newMovement.IsHorizontal)
             {
-                CheckHorizontalOverlap(newMovement, line, overlaps);
-                CheckHorizontalIntersection(newMovement, line, intersections);
+                CheckHorizontalOverlap(newMovement, line, orderedCrossing);
+                CheckHorizontalIntersection(newMovement, line, orderedCrossing);
             } else
             {
-                CheckVerticalOverlap(newMovement, line, overlaps);
-                CheckVerticalIntersection(newMovement, line, intersections);
+                CheckVerticalOverlap(newMovement, line, orderedCrossing);
+                CheckVerticalIntersection(newMovement, line, orderedCrossing);
             }
         }
 
-        var alreadyTraversed = 0;
-        var location = startIdx;
-
-
-        // UPGRADE - sort by startIdx and then only iterate through those
-        // OMG that should be an improvement!
-        while (location <= endIdx)
+        var alreadyCleaned = 0;
+        var loc = startIdx;
+        foreach (var pair in orderedCrossing)
         {
-            var handled = false;
-            foreach (var overlap in overlaps)
+            var start = pair.Key;
+            if (pair.Value is int end)
             {
-                if (overlap.start <= location && overlap.end >= location)
+                if (end >= loc)
                 {
-                    alreadyTraversed += Math.Min(overlap.end, endIdx) - location + 1;
-                    location = overlap.end;
-                    handled = true;
-                    break;
+                    var s = Math.Max(loc, start);
+                    alreadyCleaned += Math.Min(end, endIdx) - s + 1;
+                    loc = end+1;
                 }
-            }
-            if (!handled && intersections.Contains(location))
+            } else
             {
-                alreadyTraversed++;
+                alreadyCleaned++;
+                loc++;
             }
-            location++;
         }
-
-        return pointsOnLine - alreadyTraversed;
+        return pointsOnLine - alreadyCleaned;
     }
 
-    private static void CheckHorizontalOverlap(Line newMovement, Line lineToCheck, List<Line1D> overlaps)
+    private static void CheckHorizontalOverlap(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
     {
         if (lineToCheck.IsHorizontal && newMovement.StartY == lineToCheck.StartY)
         {
             var overlap = OverlapInidices(newMovement.StartX, newMovement.EndX, lineToCheck.StartX, lineToCheck.EndX);
             if (overlap is null) return;
-            overlaps.Add(overlap);
+            UpdateDictionary(crossings, overlap);
         }
     }
 
-    private static void CheckVerticalOverlap(Line newMovement, Line lineToCheck, List<Line1D> overlaps)
+    private static void CheckVerticalOverlap(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
     {
         if (!lineToCheck.IsHorizontal && newMovement.StartX == lineToCheck.StartX)
         {
-            var overlap = OverlapInidices(newMovement.StartY, newMovement.EndY, lineToCheck.StartY, lineToCheck.EndY); ;
+            var overlap = OverlapInidices(newMovement.StartY, newMovement.EndY, lineToCheck.StartY, lineToCheck.EndY);
             if (overlap is null) return;
-            overlaps.Add(overlap);
+            UpdateDictionary(crossings, overlap);
         }
     }
 
-    private static void CheckHorizontalIntersection(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
+    private static void UpdateDictionary(SortedDictionary<int, int?> crossings, Line1D lineToUpdate)
+    {
+        if (crossings.ContainsKey(lineToUpdate.Start))
+        {
+            var currentBest = crossings[lineToUpdate.Start];
+            if (currentBest is null)
+                crossings[lineToUpdate.Start] = lineToUpdate.End;
+            else if (lineToUpdate.End > currentBest)
+                crossings[lineToUpdate.Start] = lineToUpdate.End;
+        }
+        else
+            crossings.Add(lineToUpdate.Start, lineToUpdate.End);
+    }
+
+    private static void CheckHorizontalIntersection(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
     {
         if (!lineToCheck.IsHorizontal &&
             lineToCheck.StartX >= newMovement.StartX &&
@@ -160,11 +175,11 @@ public class RobotService: IRobotService
             lineToCheck.StartY <= newMovement.StartY &&
             lineToCheck.EndY >= newMovement.StartY)
         {
-            intersectionPoints.Add(lineToCheck.StartX);
+            crossings.TryAdd(lineToCheck.StartX, null);
         }
     }
 
-    private static void CheckVerticalIntersection(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
+    private static void CheckVerticalIntersection(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
     {
         if (lineToCheck.IsHorizontal &&
             lineToCheck.StartX <= newMovement.StartX &&
@@ -172,11 +187,9 @@ public class RobotService: IRobotService
             lineToCheck.StartY >= newMovement.StartY &&
             lineToCheck.StartY <= newMovement.EndY)
         {
-            intersectionPoints.Add(lineToCheck.StartY);
+           crossings.TryAdd(lineToCheck.StartY, null);
         }
     }
-
-    private record Line1D(int start, int end);
 
     private static Line1D? OverlapInidices(int rangeStart, int rangeEnd, int overlapStart, int overlapEnd)
     {
@@ -184,7 +197,7 @@ public class RobotService: IRobotService
         if (overlapStart <= rangeStart && overlapEnd >= rangeStart && overlapEnd <= rangeEnd)
             return new Line1D(rangeStart, overlapEnd);
 
-        // overlap completely inside range
+        // lineToUpdate completely inside range
         if (overlapStart >= rangeStart && overlapEnd <= rangeEnd)
             return new Line1D(overlapStart, overlapEnd);
 
@@ -192,15 +205,13 @@ public class RobotService: IRobotService
         if (overlapStart >= rangeStart && overlapStart <= rangeEnd && overlapEnd >= rangeEnd)
             return new Line1D(overlapStart, rangeEnd);
 
-        // range completely in overlap
+        // range completely in lineToUpdate
         if (overlapStart <= rangeStart && overlapEnd >= rangeEnd)
             return new Line1D(rangeStart, rangeEnd);
 
         return null;
     }
 
-    private static IEnumerable<int> Range(int start, int end) => Enumerable.Range(start, end - start + 1);
-    
     private static RobotMovementSummary ToDto(Db.Executions dbModel)
     {
         return new RobotMovementSummary(
