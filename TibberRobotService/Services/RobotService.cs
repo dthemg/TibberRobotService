@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections;
+using System.Diagnostics;
 using TibberRobotService.Interfaces;
 using TibberRobotService.Models;
 using Db = TibberRobotService.Models.Entities;
@@ -73,45 +74,81 @@ public class RobotService: IRobotService
         };
     }
 
-    // private record Line1D(int start, int stop);
-
     private static int ComputeNumberOfNewVisitedPositions(Line newMovement, List<Line> previousMovement)
     {
         // add 1 to include the starting point
         var pointsOnLine = newMovement.EndX - newMovement.StartX + newMovement.EndY - newMovement.StartY + 1;
 
+        int startIdx, endIdx;
+        if (newMovement.IsHorizontal)
+            (startIdx, endIdx) = (newMovement.StartX, newMovement.EndX);
+        else
+            (startIdx, endIdx) = (newMovement.StartY, newMovement.EndY);
+
         // instead store starting and stopping points, and then sort those badboys and we should be okay
-        var intersectionPoints = new HashSet<int>();
+        // only add new points?
+        var intersections = new HashSet<int>();
+        var overlaps = new List<Line1D>();
+
         foreach (var line in previousMovement)
         {
             if (newMovement.IsHorizontal)
             {
-                CheckHorizontalOverlap(newMovement, line, intersectionPoints);
-                CheckHorizontalIntersection(newMovement, line, intersectionPoints);
+                CheckHorizontalOverlap(newMovement, line, overlaps);
+                CheckHorizontalIntersection(newMovement, line, intersections);
             } else
             {
-                CheckVerticalOverlap(newMovement, line, intersectionPoints);
-                CheckVerticalIntersection(newMovement, line, intersectionPoints);
+                CheckVerticalOverlap(newMovement, line, overlaps);
+                CheckVerticalIntersection(newMovement, line, intersections);
             }
         }
-        return pointsOnLine - intersectionPoints.Count;
+
+        var alreadyTraversed = 0;
+        var location = startIdx;
+
+
+        // UPGRADE - sort by startIdx and then only iterate through those
+        // OMG that should be an improvement!
+        while (location <= endIdx)
+        {
+            var handled = false;
+            foreach (var overlap in overlaps)
+            {
+                if (overlap.start <= location && overlap.end >= location)
+                {
+                    alreadyTraversed += Math.Min(overlap.end, endIdx) - location + 1;
+                    location = overlap.end;
+                    handled = true;
+                    break;
+                }
+            }
+            if (!handled && intersections.Contains(location))
+            {
+                alreadyTraversed++;
+            }
+            location++;
+        }
+
+        return pointsOnLine - alreadyTraversed;
     }
 
-    private static void CheckHorizontalOverlap(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
+    private static void CheckHorizontalOverlap(Line newMovement, Line lineToCheck, List<Line1D> overlaps)
     {
         if (lineToCheck.IsHorizontal && newMovement.StartY == lineToCheck.StartY)
         {
             var overlap = OverlapInidices(newMovement.StartX, newMovement.EndX, lineToCheck.StartX, lineToCheck.EndX);
-            intersectionPoints.UnionWith(overlap);
+            if (overlap is null) return;
+            overlaps.Add(overlap);
         }
     }
 
-    private static void CheckVerticalOverlap(Line newMovement, Line lineToCheck, HashSet<int> intersectionPoints)
+    private static void CheckVerticalOverlap(Line newMovement, Line lineToCheck, List<Line1D> overlaps)
     {
         if (!lineToCheck.IsHorizontal && newMovement.StartX == lineToCheck.StartX)
         {
             var overlap = OverlapInidices(newMovement.StartY, newMovement.EndY, lineToCheck.StartY, lineToCheck.EndY); ;
-            intersectionPoints.UnionWith(overlap);
+            if (overlap is null) return;
+            overlaps.Add(overlap);
         }
     }
 
@@ -122,7 +159,7 @@ public class RobotService: IRobotService
             lineToCheck.StartX <= newMovement.EndX &&
             lineToCheck.StartY <= newMovement.StartY &&
             lineToCheck.EndY >= newMovement.StartY)
-        { 
+        {
             intersectionPoints.Add(lineToCheck.StartX);
         }
     }
@@ -139,27 +176,27 @@ public class RobotService: IRobotService
         }
     }
 
-    private static IEnumerable<int> OverlapInidices(int rangeStart, int rangeEnd, int overlapStart, int overlapEnd)
-    {
-        var emptyReturn = Enumerable.Empty<int>();
+    private record Line1D(int start, int end);
 
+    private static Line1D? OverlapInidices(int rangeStart, int rangeEnd, int overlapStart, int overlapEnd)
+    {
         // partially inside lower range
         if (overlapStart <= rangeStart && overlapEnd >= rangeStart && overlapEnd <= rangeEnd)
-            return Range(rangeStart, overlapEnd);
+            return new Line1D(rangeStart, overlapEnd);
 
         // overlap completely inside range
         if (overlapStart >= rangeStart && overlapEnd <= rangeEnd)
-            return Range(overlapStart, overlapEnd);
+            return new Line1D(overlapStart, overlapEnd);
 
         // partially inside upper range
         if (overlapStart >= rangeStart && overlapStart <= rangeEnd && overlapEnd >= rangeEnd)
-            return Range(overlapStart, rangeEnd);
+            return new Line1D(overlapStart, rangeEnd);
 
         // range completely in overlap
         if (overlapStart <= rangeStart && overlapEnd >= rangeEnd)
-            return Range(rangeStart, rangeEnd);
+            return new Line1D(rangeStart, rangeEnd);
 
-        return emptyReturn;
+        return null;
     }
 
     private static IEnumerable<int> Range(int start, int end) => Enumerable.Range(start, end - start + 1);

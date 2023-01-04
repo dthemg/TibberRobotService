@@ -9,8 +9,9 @@ var repo = new RepoMock();
 var random = new Random();
 var service = new RobotService(repo);
 
-var commands = 100;
-var movement = new List<Movement>();
+var commands = 10000;
+var movementBackForth = new List<Movement>();
+var movementRandom = new List<Movement>();
 
 var alternatives = Enum.GetValues(typeof(Direction));
 
@@ -19,25 +20,26 @@ for (int i = 0; i < commands; i++)
 {
     var steps = 100000;
     if (i % 2 == 0)
-    {
-        movement.Add(Move(Direction.East, steps));
-    }
+        movementBackForth.Add(Move(Direction.East, steps));
     else
-    {
-        movement.Add(Move(Direction.West, steps));
-    }
-    
-    /*
-    var steps = random.Next(100000);
+        movementBackForth.Add(Move(Direction.West, steps));
+        
+    steps = random.Next(100000);
     var direction = (Direction)alternatives.GetValue(random.Next(alternatives.Length));
-    movement.Add(Move(direction, 100000));
-    */
+    movementRandom.Add(Move(direction, steps));
 }
-var request = new MovementRequest()
+var requestBackForth = new MovementRequest()
 {
     Start = new() { X = 0, Y = 0 },
-    Commands = movement
+    Commands = movementBackForth
+};
+var requestRandom = new MovementRequest()
+{
+    Start = new() { X = 0, Y = 0 },
+    Commands = movementRandom
 };
 
-var summary = await service.PerformRobotMovement(request);
-Console.WriteLine($"Completed in {summary.Duration}");
+// var summaryBackForth = await service.PerformRobotMovement(requestBackForth);
+var summaryRandom = await service.PerformRobotMovement(requestRandom);
+// Console.WriteLine($"BACK FORTH: {commands} iterations :{summaryBackForth.Duration}");
+Console.WriteLine($"RANDOM: {commands} iterations :{summaryRandom.Duration}");
