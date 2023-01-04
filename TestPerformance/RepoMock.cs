@@ -10,9 +10,9 @@ public class RepoMock : IRobotMovementRepository
         await Task.Delay(1);
         return new()
         {
-            Commands = numberOfCommands,
-            Result = uniqueVisitedLocations,
-            Duration = calculationDuration
+            commands = numberOfCommands,
+            result = uniqueVisitedLocations,
+            duration = calculationDuration
         };
     }
 

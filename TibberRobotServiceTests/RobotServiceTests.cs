@@ -20,9 +20,9 @@ public class RobotServiceTests
         _movementRepository.AddMovementSummary(default, default, default)
             .ReturnsForAnyArgs(x => new Db.Executions
             {
-                Commands = (int)x[0],
-                Result = (int)x[1],
-                Duration = (float)x[2]
+                commands = (int)x[0],
+                result = (int)x[1],
+                duration = (float)x[2]
             });
 
         _sut = new RobotService(_movementRepository);

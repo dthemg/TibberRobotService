@@ -41,5 +41,5 @@ var requestRandom = new MovementRequest()
 
 // var summaryBackForth = await service.PerformRobotMovement(requestBackForth);
 var summaryRandom = await service.PerformRobotMovement(requestRandom);
-// Console.WriteLine($"BACK FORTH: {commands} iterations :{summaryBackForth.Duration}");
+// Console.WriteLine($"BACK FORTH: {commands} iterations :{summaryBackForth.duration}");
 Console.WriteLine($"RANDOM: {commands} iterations :{summaryRandom.Duration}");

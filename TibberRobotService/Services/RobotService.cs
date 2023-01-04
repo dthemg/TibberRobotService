@@ -18,6 +18,17 @@ public class RobotService: IRobotService
 
     public async Task<RobotMovementSummary> PerformRobotMovement(MovementRequest request)
     {
+        /*
+         * Okay this is next.
+        var prevHorizontal = new Dictionary<int, Line1D>
+        {
+            { request.Start.Y, new(request.Start.X, request.Start.X) }
+        };
+        var prevVertical = new Dictionary<int, Line1D>()
+        {
+            { request.Start.X, new(request.Start.Y, request.Start.Y) }
+        };
+        */
         var previousMovements = new List<Line>() { 
             new (request.Start.X, request.Start.Y, request.Start.X, request.Start.Y, true),
             new (request.Start.X, request.Start.Y, request.Start.X, request.Start.Y, false)
@@ -45,18 +56,18 @@ public class RobotService: IRobotService
         return ToDto(addedEntity);
     }
 
-    private static Line ConstructLine(Position previousPosition, Movement movement)
+    private static Line ConstructLine(Position previous, Movement movement)
     {
         return movement.Direction switch
         {
             Direction.East =>
-                new Line(previousPosition.X + 1, previousPosition.Y, previousPosition.X + movement.Steps, previousPosition.Y, true),
+                new Line(previous.X + 1, previous.Y, previous.X + movement.Steps, previous.Y, true),
             Direction.North =>
-                new Line(previousPosition.X, previousPosition.Y + 1, previousPosition.X, previousPosition.Y + movement.Steps, false),
+                new Line(previous.X, previous.Y + 1, previous.X, previous.Y + movement.Steps, false),
             Direction.West =>
-                new Line(previousPosition.X - movement.Steps, previousPosition.Y, previousPosition.X - 1, previousPosition.Y, true),
+                new Line(previous.X - movement.Steps, previous.Y, previous.X - 1, previous.Y, true),
             Direction.South =>
-                new Line(previousPosition.X, previousPosition.Y - movement.Steps, previousPosition.X, previousPosition.Y - 1, false),
+                new Line(previous.X, previous.Y - movement.Steps, previous.X, previous.Y - 1, false),
             _ => throw new ArgumentException("Unable to parse direction", nameof(movement))
         };
     }
@@ -85,7 +96,7 @@ public class RobotService: IRobotService
     private static int ComputeNumberOfNewVisitedPositions(Line newMovement, List<Line> previousMovement)
     {
 
-        // NEXT IMPROVEMENT - SORT ALL PREVIOUS MOVEMENT SO THEY CAN BE FETCHED FASTER!!
+        // NEXT IMPROVEMENT - GROUP PREVIOUS MOVEMENT ON LEVEL TO FETCH ALL DIRECTLY!!!
 
         // add 1 to include the starting point
         var pointsOnLine = newMovement.EndX - newMovement.StartX + newMovement.EndY - newMovement.StartY + 1;
@@ -215,10 +226,10 @@ public class RobotService: IRobotService
     private static RobotMovementSummary ToDto(Db.Executions dbModel)
     {
         return new RobotMovementSummary(
-            dbModel.Id,
-            dbModel.Timestamp,
-            dbModel.Commands,
-            dbModel.Result,
-            dbModel.Duration);
+            dbModel.id,
+            dbModel.timestamp,
+            dbModel.commands,
+            dbModel.result,
+            dbModel.duration);
     }
 }

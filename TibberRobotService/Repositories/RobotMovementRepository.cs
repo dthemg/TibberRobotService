@@ -19,13 +19,9 @@ public class RobotMovementRepository : IRobotMovementRepository
 
         var dbModel = ToDbModel(numberOfCommands, uniqueVisitedLocations, calculationDuration);
 
-        Console.WriteLine("Storing to db");
+        dbContext.executions.Add(dbModel);
 
-        dbContext.MovementSummaries.Add(dbModel);
-
-        // to fix - work a bit more on this!
-        // await dbContext.SaveChangesAsync();
-        dbModel.Id = Guid.NewGuid();
+        await dbContext.SaveChangesAsync();
 
         return dbModel;
     }
@@ -34,17 +30,17 @@ public class RobotMovementRepository : IRobotMovementRepository
     {
         using var dbContext = _dbContextFactory.CreateDbContext();
 
-        return await dbContext.MovementSummaries.ToListAsync();
+        return await dbContext.executions.ToListAsync();
     }
 
     private static Db.Executions ToDbModel(int numberOfCommands, int uniqueVisitedLocations, float calculationDuration)
     {
         return new()
         {
-            Commands = numberOfCommands,
-            Result = uniqueVisitedLocations,
-            Duration = calculationDuration,
-            Timestamp = DateTime.UtcNow
+            commands = numberOfCommands,
+            result = uniqueVisitedLocations,
+            duration = calculationDuration,
+            timestamp = DateTime.UtcNow
         };
     }
 }

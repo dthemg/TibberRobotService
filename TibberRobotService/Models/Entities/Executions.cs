@@ -5,13 +5,13 @@ namespace TibberRobotService.Models.Entities;
 public class Executions
 {
     [Key]
-    public Guid Id { get; set; }
+    public Guid id { get; set; }
 
-    public DateTime Timestamp { get; set; }
+    public DateTime timestamp { get; set; }
 
-    public int Commands { get; set; }
+    public int commands { get; set; }
 
-    public int Result { get; set; }
+    public int result { get; set; }
 
-    public float Duration { get; set; }
+    public float duration { get; set; }
 }
