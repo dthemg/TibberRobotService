@@ -12,6 +12,8 @@ services:
     build:
       context: .
       dockerfile: TibberRobotService/Dockerfile
+    ports:
+      - "5000:443"
     networks:
       - dev-network
 

@@ -26,7 +26,9 @@ public class RobotServiceTests
                 duration = (float)x[2]
             });
 
-        _sut = new RobotService(_movementRepository);
+        var movementCalculator = new RobotMovementCalculatorService();
+
+        _sut = new RobotService(_movementRepository, movementCalculator);
     }
 
     [Test]

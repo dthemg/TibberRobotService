@@ -41,12 +41,21 @@ public class Program
         
         // Services
         builder.Services.AddTransient<IRobotService, RobotService>();
-        
+        builder.Services.AddTransient<IRobotMovementCalculatorService, RobotMovementCalculatorService>();
+
         // Configure controllers
         builder.Services.AddControllers()
             .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-        
-        
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(builder =>
+            {
+                builder.AllowAnyOrigin();
+                builder.AllowAnyHeader();
+                builder.AllowAnyMethod();
+            });
+        });
+
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
@@ -57,9 +66,8 @@ public class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
-
+        app.UseCors();
         app.UseHttpsRedirection();
-        app.UseAuthorization();
         app.MapControllers();
 
         app.Run();

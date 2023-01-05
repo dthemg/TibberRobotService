@@ -1,11 +1,12 @@
-﻿using TibberRobotService.Models;
+﻿using TibberRobotService.Interfaces;
+using TibberRobotService.Models;
 using TibberRobotService.Utils;
 
 namespace TibberRobotService.Services;
 
-public static class RobotMovementCalculator
+public class RobotMovementCalculatorService: IRobotMovementCalculatorService
 {
-    public static long CalculateUniqueVisitedPositions(MovementRequest request)
+    public long CalculateUniqueVisitedPositions(MovementRequest request)
     {
         // We are assuming we are immediately cleaning the starting square
         var uniquePositionsVisited = 1L;

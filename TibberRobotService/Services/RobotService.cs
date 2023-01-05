@@ -7,17 +7,19 @@ namespace TibberRobotService.Services;
 public class RobotService: IRobotService
 {
     private readonly IRobotMovementRepository _robotMovementRepository;
+    private readonly IRobotMovementCalculatorService _robotMovementCalculator;
 
-    public RobotService(IRobotMovementRepository robotMovementRepository)
+    public RobotService(IRobotMovementRepository robotMovementRepository, IRobotMovementCalculatorService robotMovementCalculator)
     {
         _robotMovementRepository = robotMovementRepository;
+        _robotMovementCalculator = robotMovementCalculator;
     }
 
     public async Task<RobotMovementSummary> PerformRobotMovement(MovementRequest request)
     {
         var stopwatch = new Stopwatch();
         stopwatch.Start();
-        var numberOfUniquePositions = RobotMovementCalculator.CalculateUniqueVisitedPositions(request);
+        var numberOfUniquePositions = _robotMovementCalculator.CalculateUniqueVisitedPositions(request);
         stopwatch.Stop();
         
         var calculationDuration = stopwatch.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
