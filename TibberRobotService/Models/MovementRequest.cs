@@ -5,7 +5,7 @@
 public class MovementRequest
 {
     public StartPosition Start { get; set; }
-    public List<Movement> Commands { get; set; } = new();
+    public List<Command> Commands { get; set; } = new();
 }
 
 public class StartPosition
@@ -14,7 +14,7 @@ public class StartPosition
     public int Y { get; set; }
 }
 
-public class Movement
+public class Command
 {
     public Direction Direction { get; set; }
     public int Steps { get; set; }

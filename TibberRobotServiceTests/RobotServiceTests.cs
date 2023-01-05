@@ -73,7 +73,7 @@ public class RobotServiceTests
         summary.Result.Should().Be(steps + 1);
     }
 
-    private Movement Move(Direction direction, int steps) => new()
+    private Command Move(Direction direction, int steps) => new()
     { Direction = direction, Steps = steps };
 
     [Test]
@@ -172,8 +172,8 @@ public class RobotServiceTests
     public async Task PerformRobotMovement_should_be_performant_in_worst_case_scenario()
     {
         var steps = 100000;
-        var commands = 100;
-        var movement = new List<Movement>();
+        var commands = 1000;
+        var movement = new List<Command>();
         // Maximize number of overlapping points
         for (int i = 0; i < commands; i++)
         {
@@ -199,16 +199,16 @@ public class RobotServiceTests
     [Test]
     public async Task PerformRobotMovement_should_be_performant_in_random_movement_scenario()
     {
-        var alternatives = Enum.GetValues(typeof(Direction));
-        var movement = new List<Movement>();
+        var possibleDirections = Enum.GetValues(typeof(Direction));
+        var movement = new List<Command>();
         var commands = 1000;
         var random = new Random();
         for (int i = 0; i < commands; i++)
         {
             var steps = random.Next(100000);
-#pragma warning disable CS8605 
-            var direction = (Direction)alternatives.GetValue(random.Next(alternatives.Length));
-#pragma warning restore CS8605
+#pragma warning disable CS8605 // Unboxing a possibly null value.
+            var direction = (Direction)possibleDirections.GetValue(random.Next(possibleDirections.Length));
+#pragma warning restore CS8605 // Unboxing a possibly null value.
             movement.Add(Move(direction, steps));
         }
 

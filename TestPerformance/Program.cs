@@ -2,7 +2,7 @@
 using TibberRobotService.Models;
 using TibberRobotService.Services;
 
-static Movement Move(Direction direction, int steps) => new()
+static Command Move(Direction direction, int steps) => new()
     { Direction = direction, Steps = steps };
 
 var repo = new RepoMock();
@@ -11,8 +11,8 @@ var service = new RobotService(repo);
 
 var commands = 10000;
 var maxStep = 100000;
-var movementBackForth = new List<Movement>();
-var movementRandom = new List<Movement>();
+var movementBackForth = new List<Command>();
+var movementRandom = new List<Command>();
 
 var alternatives = Enum.GetValues(typeof(Direction));
 

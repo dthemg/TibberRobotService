@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.OpenApi.Models;
+using System.Diagnostics;
+using System.Security.AccessControl;
 using TibberRobotService.Models;
 using TibberRobotService.Utils;
 
@@ -6,138 +8,138 @@ namespace TibberRobotService.Services;
 
 public static class RobotMovementCalculator
 {
-    private record Line1D(int Start, int End);
+    private record Path1D(int Start, int End);
 
     public static int CalculateUniqueVisitedPositions(MovementRequest request)
     {
         // We are assuming we are immediately cleaning the starting square
         var uniquePositionsVisited = 1;
 
-        (var previousPosition, var previousMovements) = Initialize(request.Start);
+        (var previousPosition, var traversedLines) = Initialize(request.Start);
 
-        foreach (var movement in request.Commands)
+        foreach (var command in request.Commands)
         {
-            var newLine = RobotMovementUtils.ConstructLine(previousPosition, movement);
-            uniquePositionsVisited += ComputeNumberOfNewVisitedPositions(newLine, previousMovements);
-            previousPosition = RobotMovementUtils.FindPreviousPosition(newLine, movement);
-            previousMovements.Add(newLine);
+            var newLine = RobotMovementUtils.ConstructLine(previousPosition, command);
+            uniquePositionsVisited += ComputeNumberOfNewVisitedPositions(newLine, traversedLines);
+            previousPosition = RobotMovementUtils.FindPreviousPosition(newLine, command);
+            traversedLines.Add(newLine);
         }
         return uniquePositionsVisited;
     }
 
     private static (Position, List<Line>) Initialize(StartPosition start)
     {
-        var initialMovement = new List<Line>() {
+        var initialLine = new List<Line>() {
             new (start.X, start.Y, start.X, start.Y, true),
             new (start.X, start.Y, start.X, start.Y, false)
         };
         var initialPosition = new Position(start.X, start.Y);
-        return (initialPosition, initialMovement);
+        return (initialPosition, initialLine);
     }
 
-    private static int ComputeNumberOfNewVisitedPositions(Line line, List<Line> previousLines)
+    private static int ComputeNumberOfNewVisitedPositions(Line newLine, List<Line> previousLines)
     {
-        var orderedCrossings = LocateCrossingsAndOverlaps(line, previousLines);
-
-        (int startOfLine, int endOfLine) = line.IsHorizontal ?
-            (line.StartX, line.EndX) :
-            (line.StartY, line.EndY);
-
-        var intersections = 0;
-        var positionToEvaluate = startOfLine;
-        foreach (var pair in orderedCrossings)
-        {
-            var startOfCrossing = pair.Key;
-            if (pair.Value is int endOfCrossing)
-            {
-                if (endOfCrossing < positionToEvaluate) continue;
-                
-                var startOfIntersection = Math.Max(positionToEvaluate, startOfCrossing);
-                // Add 1 to include both ends of the overlap
-                intersections += Math.Min(endOfCrossing, endOfLine) - startOfIntersection + 1; 
-                positionToEvaluate = endOfCrossing + 1;
-            }
-            else
-            {
-                intersections++;
-                positionToEvaluate++;
-            }
-        }
+        var orderedCrossings = LocateCrossingsAndOverlaps(newLine, previousLines);
+        var numberOfOverlappingPoints = CountOverlappingPoints(newLine, orderedCrossings);
 
         // add 1 to include the starting point
-        var pointsOnLine = line.EndX - line.StartX + line.EndY - line.StartY + 1;
-        return pointsOnLine - intersections;
+        var pointsOnLine = newLine.EndX - newLine.StartX + newLine.EndY - newLine.StartY + 1;
+        return pointsOnLine - numberOfOverlappingPoints;
     }
 
-    private static SortedDictionary<int, int?> LocateCrossingsAndOverlaps(Line movement, List<Line> previousMovement)
+    private static SortedDictionary<int, int> LocateCrossingsAndOverlaps(Line movement, List<Line> traversedLines)
     {
-        var orderedCrossings = new SortedDictionary<int, int?>();
+        var orderedOverlaps = new SortedDictionary<int, int>();
 
         if (movement.IsHorizontal)
         {
-            foreach (var line in previousMovement)
+            foreach (var traversedLine in traversedLines)
             {
-                CheckHorizontalOverlap(movement, line, orderedCrossings);
-                CheckHorizontalIntersection(movement, line, orderedCrossings);
+                CheckForHorizontalOverlap(movement, traversedLine, orderedOverlaps);
+                CheckForHorizontalIntersection(movement, traversedLine, orderedOverlaps);
             }
         }
         else
         {
-            foreach (var line in previousMovement)
+            foreach (var traversedLine in traversedLines)
             {
-                CheckVerticalOverlap(movement, line, orderedCrossings);
-                CheckVerticalIntersection(movement, line, orderedCrossings);
+                CheckForVerticalOverlap(movement, traversedLine, orderedOverlaps);
+                CheckForVerticalIntersection(movement, traversedLine, orderedOverlaps);
             }
         }
-        return orderedCrossings;
+        return orderedOverlaps;
     }
 
-    private static void CheckHorizontalOverlap(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
+    private static int CountOverlappingPoints(Line newLine, SortedDictionary<int, int> orderedOverlaps)
     {
-        if (lineToCheck.IsHorizontal && newMovement.StartY == lineToCheck.StartY)
+        (int startOfLine, int endOfLine) = newLine.IsHorizontal ?
+            (newLine.StartX, newLine.EndX) :
+            (newLine.StartY, newLine.EndY);
+
+        var numberOfOverlappingPoints = 0;
+        var positionToEvaluate = startOfLine;
+        
+        foreach (var pair in orderedOverlaps)
         {
-            var overlap = OverlapInidices(newMovement.StartX, newMovement.EndX, lineToCheck.StartX, lineToCheck.EndX);
+            var startOfCrossing = pair.Key;
+            var endOfCrossing = pair.Value;
+
+            if (endOfCrossing < positionToEvaluate) continue;
+
+            var startOfOverlap = Math.Max(positionToEvaluate, startOfCrossing);
+            
+            // Add 1 to include both ends of the overlap
+            numberOfOverlappingPoints += Math.Min(endOfCrossing, endOfLine) - startOfOverlap + 1;
+            positionToEvaluate = endOfCrossing + 1;
+        }
+
+        return numberOfOverlappingPoints;
+    }
+
+    private static void CheckForHorizontalOverlap(Line newLine, Line lineToCheck, SortedDictionary<int, int> orderedOverlaps)
+    {
+        if (lineToCheck.IsHorizontal && newLine.StartY == lineToCheck.StartY)
+        {
+            var overlap = FindOverlap(newLine.StartX, newLine.EndX, lineToCheck.StartX, lineToCheck.EndX);
             if (overlap is null) return;
-            UpdateDictionary(crossings, overlap);
+            UpdateDictionary(orderedOverlaps, overlap);
         }
     }
 
-    private static void CheckVerticalOverlap(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
+    private static void CheckForVerticalOverlap(Line newLine, Line lineToCheck, SortedDictionary<int, int> orderedOverlaps)
     {
-        if (!lineToCheck.IsHorizontal && newMovement.StartX == lineToCheck.StartX)
+        if (!lineToCheck.IsHorizontal && newLine.StartX == lineToCheck.StartX)
         {
-            var overlap = OverlapInidices(newMovement.StartY, newMovement.EndY, lineToCheck.StartY, lineToCheck.EndY);
+            var overlap = FindOverlap(newLine.StartY, newLine.EndY, lineToCheck.StartY, lineToCheck.EndY);
             if (overlap is null) return;
-            UpdateDictionary(crossings, overlap);
+            UpdateDictionary(orderedOverlaps, overlap);
         }
     }
 
-    private static void UpdateDictionary(SortedDictionary<int, int?> crossings, Line1D lineToUpdate)
+    private static void UpdateDictionary(SortedDictionary<int, int> crossings, Path1D lineToUpdate)
     {
         if (crossings.ContainsKey(lineToUpdate.Start))
         {
             var currentBest = crossings[lineToUpdate.Start];
-            if (currentBest is null)
-                crossings[lineToUpdate.Start] = lineToUpdate.End;
-            else if (lineToUpdate.End > currentBest)
+            if (lineToUpdate.End > currentBest)
                 crossings[lineToUpdate.Start] = lineToUpdate.End;
         }
         else
             crossings.Add(lineToUpdate.Start, lineToUpdate.End);
     }
 
-    private static void CheckHorizontalIntersection(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
+    private static void CheckForHorizontalIntersection(Line newLine, Line lineToCheck, SortedDictionary<int, int> orderedOverlaps)
     {
-        var intersectionPoint = CheckIntersection(newMovement, lineToCheck);
+        var intersectionPoint = CheckIntersection(newLine, lineToCheck);
         if (intersectionPoint is not null)
-            crossings.TryAdd(lineToCheck.StartX, null);
+            orderedOverlaps.TryAdd(lineToCheck.StartX, lineToCheck.StartX);
     }
 
-    private static void CheckVerticalIntersection(Line newMovement, Line lineToCheck, SortedDictionary<int, int?> crossings)
+    private static void CheckForVerticalIntersection(Line newLine, Line lineToCheck, SortedDictionary<int, int> orderedOverlaps)
     {
-        var intersectionPoint = CheckIntersection(lineToCheck, newMovement);
+        var intersectionPoint = CheckIntersection(lineToCheck, newLine);
         if (intersectionPoint != null)
-            crossings.TryAdd(lineToCheck.StartY, null);
+            orderedOverlaps.TryAdd(lineToCheck.StartY, lineToCheck.StartY);
     }
 
     private static Position? CheckIntersection(Line horizontal, Line vertical)
@@ -152,23 +154,23 @@ public static class RobotMovementCalculator
             return null;
     }
 
-    private static Line1D? OverlapInidices(int rangeStart, int rangeEnd, int overlapStart, int overlapEnd)
+    private static Path1D? FindOverlap(int lineStart, int lineEnd, int toCheckStart, int toCheckEnd)
     {
         // partially inside lower range
-        if (overlapStart <= rangeStart && overlapEnd >= rangeStart && overlapEnd <= rangeEnd)
-            return new Line1D(rangeStart, overlapEnd);
+        if (toCheckStart <= lineStart && toCheckEnd >= lineStart && toCheckEnd <= lineEnd)
+            return new Path1D(lineStart, toCheckEnd);
 
         // lineToUpdate completely inside range
-        if (overlapStart >= rangeStart && overlapEnd <= rangeEnd)
-            return new Line1D(overlapStart, overlapEnd);
+        if (toCheckStart >= lineStart && toCheckEnd <= lineEnd)
+            return new Path1D(toCheckStart, toCheckEnd);
 
         // partially inside upper range
-        if (overlapStart >= rangeStart && overlapStart <= rangeEnd && overlapEnd >= rangeEnd)
-            return new Line1D(overlapStart, rangeEnd);
+        if (toCheckStart >= lineStart && toCheckStart <= lineEnd && toCheckEnd >= lineEnd)
+            return new Path1D(toCheckStart, lineEnd);
 
         // range completely in lineToUpdate
-        if (overlapStart <= rangeStart && overlapEnd >= rangeEnd)
-            return new Line1D(rangeStart, rangeEnd);
+        if (toCheckStart <= lineStart && toCheckEnd >= lineEnd)
+            return new Path1D(lineStart, lineEnd);
 
         return null;
     }
