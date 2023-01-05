@@ -7,45 +7,31 @@ public static class RobotMovementUtils
 {
     /// <summary>
     /// Provided a starting position <paramref name="start"/> and a command given
-    /// in <paramref name="command"/>, return a line containing all points in 
-    /// the command path excluding the starting position
+    /// in <paramref name="command"/>, return a line descriptor, containing its span
+    /// and coordinate, as well as the end position.
     /// </summary>
     /// <param name="start"></param>
     /// <param name="command"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    public static Line ConstructLine(Position start, Command command)
+    public static (Line, Position) ConstructLine(Position start, Command command)
     {
-        return command.Direction switch
+        switch (command.Direction)
         {
-            Direction.East =>
-                new Line(start.X + 1, start.Y, start.X + command.Steps, start.Y, true),
-            Direction.North =>
-                new Line(start.X, start.Y + 1, start.X, start.Y + command.Steps, false),
-            Direction.West =>
-                new Line(start.X - command.Steps, start.Y, start.X - 1, start.Y, true),
-            Direction.South =>
-                new Line(start.X, start.Y - command.Steps, start.X, start.Y - 1, false),
-            _ => throw new ArgumentException("Unable to parse direction", nameof(command))
-        };
-    }
-
-    /// <summary>
-    /// Find the position of the end of a line <paramref name="line"/> produced by command <paramref name="movement"/>
-    /// </summary>
-    /// <param name="line"></param>
-    /// <param name="movement"></param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentException"></exception>
-    public static Position FindPreviousPosition(Line line, Command movement)
-    {
-        return movement.Direction switch
-        {
-            Direction.East => new Position(line.EndX, line.EndY),
-            Direction.North => new Position(line.EndX, line.EndY),
-            Direction.West => new Position(line.StartX, line.StartY),
-            Direction.South => new Position(line.StartX, line.StartY),
-            _ => throw new ArgumentException("Unable to parse direction", nameof(movement))
-        };
+            case Direction.East:
+                var spanEast = new Line1D(start.X + 1, start.X + command.Steps);
+                return (new Line(spanEast, start.Y, true), new(spanEast.End, start.Y));
+            case Direction.North:
+                var spanNorth = new Line1D(start.Y + 1, start.Y + command.Steps);
+                return (new Line(spanNorth, start.X, false), new(start.X, spanNorth.End));
+            case Direction.West:
+                var spanWest = new Line1D(start.X - command.Steps, start.X - 1);
+                return (new Line(spanWest, start.Y, true), new(spanWest.Start, start.Y));
+            case Direction.South:
+                var spanSouth = new Line1D(start.Y - command.Steps, start.Y - 1);
+                return (new Line(spanSouth, start.X, false), new(start.X, spanSouth.Start));
+            default:
+                throw new ArgumentException($"Could not parse direction {command.Direction}", nameof(command));
+        }
     }
 }

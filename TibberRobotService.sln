@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TibberRobotService", "Tibbe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TibberRobotServiceTests", "TibberRobotServiceTests\TibberRobotServiceTests.csproj", "{44A810BC-084E-41F9-8AE8-6AE105610D71}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPerformance", "TestPerformance\TestPerformance.csproj", "{2555C2C2-3805-4419-8239-8370ACDE4AFD}"
-EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{603DCAB3-508D-4303-929A-77E8928BD65F}"
 EndProject
 Global
@@ -25,10 +23,6 @@ Global
 		{44A810BC-084E-41F9-8AE8-6AE105610D71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{44A810BC-084E-41F9-8AE8-6AE105610D71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{44A810BC-084E-41F9-8AE8-6AE105610D71}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2555C2C2-3805-4419-8239-8370ACDE4AFD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{603DCAB3-508D-4303-929A-77E8928BD65F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{603DCAB3-508D-4303-929A-77E8928BD65F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{603DCAB3-508D-4303-929A-77E8928BD65F}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -6,7 +6,7 @@ public interface IRobotMovementRepository
 {
     Task<Db.Executions> AddMovementSummary(
         int numberOfCommands,
-        int uniqueVisitedLocations,
+        long uniqueVisitedLocations,
         float calculationDuration);
 
     Task<IEnumerable<Db.Executions>> GetAllMovementSummaries();

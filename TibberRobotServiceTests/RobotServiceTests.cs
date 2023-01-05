@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
+using NSubstitute.Routing.Handlers;
 using TibberRobotService.Interfaces;
 using TibberRobotService.Models;
 using TibberRobotService.Services;
@@ -21,7 +22,7 @@ public class RobotServiceTests
             .ReturnsForAnyArgs(x => new Db.Executions
             {
                 commands = (int)x[0],
-                result = (int)x[1],
+                result = (long)x[1],
                 duration = (float)x[2]
             });
 
@@ -51,53 +52,34 @@ public class RobotServiceTests
     public async Task PerformRobotMovement_should_compute_correctly_for_movement_in_straight_line(Direction direction)
     {
         var steps = 100;
-        var request = new MovementRequest()
+        var request = MakeRequest(new()
         {
-            Start = new()
-            {
-                X = 10,
-                Y = 20
-            },
-            Commands = new()
-            {
-                new()
-                {
-                    Steps = steps,
-                    Direction = direction
-                }
-            }
-        };
+            Move(direction, steps)
+        });
 
         var summary = await _sut.PerformRobotMovement(request);
         summary.Commands.Should().Be(1);
         summary.Result.Should().Be(steps + 1);
     }
 
-    private Command Move(Direction direction, int steps) => new()
-    { Direction = direction, Steps = steps };
-
     [Test]
     public async Task PerformRobotMovement_should_handle_crossings_correctly()
     {
-        var request = new MovementRequest()
+        var request = MakeRequest(new()
         {
-            Start = new() { X = 0, Y = 0 },
-            Commands = new()
-            {
-                Move(Direction.North, 8),
-                Move(Direction.West, 2),
-                Move(Direction.South, 2),
-                Move(Direction.East, 8),
-                Move(Direction.North, 2),
-                Move(Direction.West, 2),
-                Move(Direction.South, 8),
-                Move(Direction.East, 2),
-                Move(Direction.North, 2),
-                Move(Direction.West, 8),
-                Move(Direction.South, 2),
-                Move(Direction.East, 2)
-            }
-        };
+            Move(Direction.North, 8),
+            Move(Direction.West, 2),
+            Move(Direction.South, 2),
+            Move(Direction.East, 8),
+            Move(Direction.North, 2),
+            Move(Direction.West, 2),
+            Move(Direction.South, 8),
+            Move(Direction.East, 2),
+            Move(Direction.North, 2),
+            Move(Direction.West, 8),
+            Move(Direction.South, 2),
+            Move(Direction.East, 2)
+        });
 
         var summary = await _sut.PerformRobotMovement(request);
         summary.Result.Should().Be(44);
@@ -106,17 +88,13 @@ public class RobotServiceTests
     [Test]
     public async Task PerformRobotMovement_should_handle_complete_overlaps_correctly()
     {
-        var request = new MovementRequest()
+        var request = MakeRequest(new()
         {
-            Start = new() { X = 0, Y = 0 },
-            Commands = new()
-            {
-                Move(Direction.East, 10),
-                Move(Direction.West, 10),
-                Move(Direction.South, 10),
-                Move(Direction.North, 10),
-            }
-        };
+            Move(Direction.East, 10),
+            Move(Direction.West, 10),
+            Move(Direction.South, 10),
+            Move(Direction.North, 10),
+        });
 
         var summary = await _sut.PerformRobotMovement(request);
         summary.Result.Should().Be(21);
@@ -125,21 +103,17 @@ public class RobotServiceTests
     [Test]
     public async Task PerformRobotMovement_should_handle_partial_horizontal_overlaps_correctly()
     {
-        var request = new MovementRequest()
+        var request = MakeRequest(new()
         {
-            Start = new() { X = 0, Y = 0 },
-            Commands = new()
-            {
-                Move(Direction.East, 10),
-                Move(Direction.North, 1),
-                Move(Direction.East, 2),
-                Move(Direction.South, 1),
-                Move(Direction.West, 13),
-                Move(Direction.East, 3),
-                Move(Direction.East, 5),
-                Move(Direction.East, 5)
-            }
-        };
+            Move(Direction.East, 10),
+            Move(Direction.North, 1),
+            Move(Direction.East, 2),
+            Move(Direction.South, 1),
+            Move(Direction.West, 13),
+            Move(Direction.East, 3),
+            Move(Direction.East, 5),
+            Move(Direction.East, 5)
+        });
 
         var summary = await _sut.PerformRobotMovement(request);
         summary.Result.Should().Be(17);
@@ -148,77 +122,92 @@ public class RobotServiceTests
     [Test]
     public async Task PerformRobotMovement_should_handle_partial_vertical_overlaps_correctly()
     {
-        var request = new MovementRequest()
+        var request = MakeRequest(new()
         {
-            Start = new() { X = 0, Y = 0 },
-            Commands = new()
-            {
-                Move(Direction.North, 10),
-                Move(Direction.West, 1),
-                Move(Direction.North, 2),
-                Move(Direction.East, 1),
-                Move(Direction.South, 13),
-                Move(Direction.North, 3),
-                Move(Direction.North, 5),
-                Move(Direction.North, 5)
-            }
-        };
+            Move(Direction.North, 10),
+            Move(Direction.West, 1),
+            Move(Direction.North, 2),
+            Move(Direction.East, 1),
+            Move(Direction.South, 13),
+            Move(Direction.North, 3),
+            Move(Direction.North, 5),
+            Move(Direction.North, 5)
+        });
 
         var summary = await _sut.PerformRobotMovement(request);
         summary.Result.Should().Be(17);
     }
 
     [Test]
-    public async Task PerformRobotMovement_should_be_performant_in_worst_case_scenario()
+    public async Task PerformRobotMovement_should_handle_going_in_a_circle()
+    {
+        var S = 10;
+        var request = MakeRequest(new()
+        {
+            Move(Direction.North, S),
+            Move(Direction.East, S),
+            Move(Direction.South, S),
+            Move(Direction.West, S),
+            Move(Direction.North, S),
+            Move(Direction.East, S),
+            Move(Direction.South, S),
+            Move(Direction.West, S)
+        });
+
+        var summary = await _sut.PerformRobotMovement(request);
+        summary.Result.Should().Be(40L);
+    }
+
+    [Test]
+    public async Task PerformRobotMovement_should_be_performant_when_going_back_and_forth()
     {
         var steps = 100000;
-        var commands = 1000;
-        var movement = new List<Command>();
+        var numberOfCommands = 1000;
+        var commands = new List<Command>();
         // Maximize number of overlapping points
-        for (int i = 0; i < commands; i++)
+        for (int i = 0; i < numberOfCommands; i++)
         {
             if (i%2 == 0)
             {
-                movement.Add(Move(Direction.East, steps));
+                commands.Add(Move(Direction.East, steps));
             } else
             {
-                movement.Add(Move(Direction.West, steps));
+                commands.Add(Move(Direction.West, steps));
             }
         }
-        var request = new MovementRequest()
-        {
-            Start = new() { X = 0, Y = 0 },
-            Commands = movement
-        };
+        var request = MakeRequest(commands);
 
         var summary = await _sut.PerformRobotMovement(request);
         summary.Result.Should().Be(steps + 1);
-        summary.Duration.Should().BeLessThan(1f);
+        summary.Duration.Should().BeLessThan(0.05f);
     }
 
     [Test]
     public async Task PerformRobotMovement_should_be_performant_in_random_movement_scenario()
     {
         var possibleDirections = Enum.GetValues(typeof(Direction));
-        var movement = new List<Command>();
-        var commands = 1000;
+        var commands = new List<Command>();
+        var numberOfCommands = 1000;
         var random = new Random();
-        for (int i = 0; i < commands; i++)
+        for (int i = 0; i < numberOfCommands; i++)
         {
             var steps = random.Next(100000);
-#pragma warning disable CS8605 // Unboxing a possibly null value.
-            var direction = (Direction)possibleDirections.GetValue(random.Next(possibleDirections.Length));
-#pragma warning restore CS8605 // Unboxing a possibly null value.
-            movement.Add(Move(direction, steps));
+            if (possibleDirections.GetValue(random.Next(possibleDirections.Length)) is Direction direction)
+                commands.Add(Move(direction, steps));
         }
 
-        var request = new MovementRequest()
-        {
-            Start = new() { X = 0, Y = 0 },
-            Commands = movement
-        };
+        var request = MakeRequest(commands);
 
         var summary = await _sut.PerformRobotMovement(request);
-        summary.Duration.Should().BeLessThan(1f);
+        summary.Duration.Should().BeLessThan(0.05f);
     }
+
+    private static Command Move(Direction direction, int steps) => new()
+    { Direction = direction, Steps = steps };
+
+    private static MovementRequest MakeRequest(List<Command> commands) => new MovementRequest()
+    {
+        Start = new() { X = 0, Y = 0 },
+        Commands = commands
+    };
 }

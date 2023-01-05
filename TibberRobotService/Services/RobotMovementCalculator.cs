@@ -5,33 +5,18 @@ namespace TibberRobotService.Services;
 
 public static class RobotMovementCalculator
 {
-    
-
-    public static int CalculateUniqueVisitedPositions(MovementRequest request)
+    public static long CalculateUniqueVisitedPositions(MovementRequest request)
     {
         // We are assuming we are immediately cleaning the starting square
-        var uniquePositionsVisited = 1;
+        var uniquePositionsVisited = 1L;
 
         (var previousPosition, var traversedHorizontalLines, var traversedVerticalLines) = Initialize(request.Start);
 
         foreach (var command in request.Commands)
         {
-            var newLine = RobotMovementUtils.ConstructLine(previousPosition, command);
+            (var newLine, previousPosition) = RobotMovementUtils.ConstructLine(previousPosition, command);
             uniquePositionsVisited += ComputeNumberOfNewVisitedPositions(newLine, traversedHorizontalLines, traversedVerticalLines);
-            previousPosition = RobotMovementUtils.FindPreviousPosition(newLine, command);
-            if (newLine.IsHorizontal)
-            {
-                if (traversedHorizontalLines.ContainsKey(newLine.StartY))
-                    traversedHorizontalLines[newLine.StartY].Add(new(newLine.StartX, newLine.EndX));
-                else
-                    traversedHorizontalLines[newLine.StartY] = new() { new(newLine.StartX, newLine.EndX) };
-            } else
-            {
-                if (traversedVerticalLines.ContainsKey(newLine.StartX))
-                    traversedVerticalLines[newLine.StartX].Add(new(newLine.StartY, newLine.EndY));
-                else
-                    traversedVerticalLines[newLine.StartX] = new() { new(newLine.StartY, newLine.EndY) };
-            }
+            AddToTraversedPaths(newLine, traversedHorizontalLines, traversedVerticalLines);
         }
         return uniquePositionsVisited;
     }
@@ -51,77 +36,96 @@ public static class RobotMovementCalculator
         return (initialPosition, initialHorizontalLines, initialVerticalLines);
     }
 
-    private static int ComputeNumberOfNewVisitedPositions(Line newLine, Dictionary<int, List<Line1D>> traversedHorizontalLines, Dictionary<int, List<Line1D>> traversedVerticalLines)
+    private static void AddToTraversedPaths(
+        Line newLine,
+        Dictionary<int, List<Line1D>> traversedHorizontalPath,
+        Dictionary<int, List<Line1D>> traversedVerticalPath)
     {
-        Line1D newLine1D;
+        if (newLine.IsHorizontal)
+            AddToTraversedPath(newLine, traversedHorizontalPath);
+        else
+            AddToTraversedPath(newLine, traversedVerticalPath);
+    }
 
+    private static void AddToTraversedPath(
+        Line newLine, Dictionary<int, List<Line1D>> traversedPath)
+    {
+        if (traversedPath.ContainsKey(newLine.Coordinate))
+            traversedPath[newLine.Coordinate].Add(newLine.Span);
+        else
+            traversedPath[newLine.Coordinate] = new() { newLine.Span };
+    }
+
+    private static long ComputeNumberOfNewVisitedPositions(
+        Line newLine,
+        Dictionary<int, List<Line1D>> traversedHorizontalLines,
+        Dictionary<int, List<Line1D>> traversedVerticalLines)
+    {
         SortedDictionary<int, int> orderedCrossings;
         if (newLine.IsHorizontal)
         {
-            newLine1D = new(newLine.StartX, newLine.EndX);
-            orderedCrossings = LocateCrossingsAndOverlaps(
-                new Line1D(newLine.StartX, newLine.EndX),
-                newLine.StartY,
+            orderedCrossings = LocateOverlapsAndCrossings(
+                newLine.Span,
+                newLine.Coordinate,
                 traversedHorizontalLines,
                 traversedVerticalLines);
         } else
         {
-            newLine1D = new(newLine.StartY, newLine.EndY);
-            orderedCrossings = LocateCrossingsAndOverlaps(
-                new Line1D(newLine.StartY, newLine.EndY), 
-                newLine.StartX,
+            orderedCrossings = LocateOverlapsAndCrossings(
+                newLine.Span, 
+                newLine.Coordinate,
                 traversedVerticalLines,
                 traversedHorizontalLines);
         }
-        var numberOfOverlappingPoints = CountOverlappingPoints(newLine1D, orderedCrossings);
 
-        // add 1 to include the starting point
-        var pointsOnLine = newLine.EndX - newLine.StartX + newLine.EndY - newLine.StartY + 1;
+        var numberOfOverlappingPoints = CountAlreadyTraversedPoints(newLine.Span, orderedCrossings);
+        
+        long pointsOnLine = newLine.Span.End - newLine.Span.Start + 1; // add 1 to include the starting point
         return pointsOnLine - numberOfOverlappingPoints;
     }
 
-    private static SortedDictionary<int, int> LocateCrossingsAndOverlaps(
-        Line1D movement,
-        int Coordinate,
+    private static SortedDictionary<int, int> LocateOverlapsAndCrossings(
+        Line1D span,
+        int coordinate,
         Dictionary<int, List<Line1D>> traversedParallelLines,
         Dictionary<int, List<Line1D>> traversedPerpendicularLines)
     {
         var orderedOverlaps = new SortedDictionary<int, int>();
-        if (traversedParallelLines.TryGetValue(Coordinate, out var potentialOverlaps))
+        
+        // Locate overlaps
+        if (traversedParallelLines.TryGetValue(coordinate, out var potentialOverlaps))
         {
             foreach (var potentialOverlap in potentialOverlaps)
-                CheckForOverlap(movement.Start, movement.End, potentialOverlap.Start, potentialOverlap.End, orderedOverlaps);
+                CheckForOverlap(span, potentialOverlap, orderedOverlaps);
         }
 
-        foreach (var potentialCrossing in traversedPerpendicularLines)
+        // Locate crossings
+        foreach (var (crossing, perpendicularSpans) in traversedPerpendicularLines)
         {
-            var crossings = potentialCrossing.Key;
-            if (crossings < movement.Start || crossings > movement.End) continue;
+            if (crossing < span.Start || crossing > span.End) continue;
             
-            var line1Ds = potentialCrossing.Value;
-            foreach (var line1D in line1Ds)
+            foreach (var perpendicularSpan in perpendicularSpans)
             {
-                if (Coordinate >= line1D.Start && Coordinate <= line1D.End)
-                    orderedOverlaps.TryAdd(movement.Start, movement.Start);
+                if (coordinate >= perpendicularSpan.Start && coordinate <= perpendicularSpan.End)
+                    orderedOverlaps.TryAdd(span.Start, span.Start);
             }
         }
         return orderedOverlaps;
     }
 
-    private static int CountOverlappingPoints(Line1D newLine, SortedDictionary<int, int> orderedOverlaps)
+    private static long CountAlreadyTraversedPoints(
+        Line1D newLine,
+        SortedDictionary<int, int> orderedOverlaps)
     {
-        var numberOfOverlappingPoints = 0;
+        var numberOfOverlappingPoints = 0L;
 
         var positionToEvaluate = newLine.Start;
-        foreach (var pair in orderedOverlaps)
+        foreach (var (startOfCrossing, endOfCrossing) in orderedOverlaps)
         {
-            var startOfCrossing = pair.Key;
-            var endOfCrossing = pair.Value;
-
             if (endOfCrossing < positionToEvaluate) continue;
 
             var startOfOverlap = Math.Max(positionToEvaluate, startOfCrossing);
-            
+
             // Add 1 to include both ends of the overlap
             numberOfOverlappingPoints += Math.Min(endOfCrossing, newLine.End) - startOfOverlap + 1;
             positionToEvaluate = endOfCrossing + 1;
@@ -130,9 +134,9 @@ public static class RobotMovementCalculator
         return numberOfOverlappingPoints;
     }
 
-    private static void CheckForOverlap(int start, int end, int toCheckStart, int toCheckEnd, SortedDictionary<int, int> orderedOverlaps)
+    private static void CheckForOverlap(Line1D newSpan, Line1D spanToCheck, SortedDictionary<int, int> orderedOverlaps)
     {
-        var overlap = FindOverlap(start, end, toCheckStart, toCheckEnd);
+        var overlap = FindOverlap(newSpan, spanToCheck);
         if (overlap is null) return;
 
         if (orderedOverlaps.TryGetValue(overlap.Start, out var longestOverlap))
@@ -143,23 +147,23 @@ public static class RobotMovementCalculator
             orderedOverlaps.Add(overlap.Start, overlap.End);
     }
 
-    private static Line1D? FindOverlap(int lineStart, int lineEnd, int toCheckStart, int toCheckEnd)
+    private static Line1D? FindOverlap(Line1D first, Line1D second)
     {
         // partially inside lower range
-        if (toCheckStart <= lineStart && toCheckEnd >= lineStart && toCheckEnd <= lineEnd)
-            return new Line1D(lineStart, toCheckEnd);
+        if (second.Start <= first.Start && second.End >= first.Start && second.End <= first.End)
+            return new Line1D(first.Start, second.End);
 
         // lineToUpdate completely inside range
-        if (toCheckStart >= lineStart && toCheckEnd <= lineEnd)
-            return new Line1D(toCheckStart, toCheckEnd);
+        if (second.Start >= first.Start && second.End <= first.End)
+            return new Line1D(second.Start, second.End);
 
         // partially inside upper range
-        if (toCheckStart >= lineStart && toCheckStart <= lineEnd && toCheckEnd >= lineEnd)
-            return new Line1D(toCheckStart, lineEnd);
+        if (second.Start >= first.Start && second.Start <= first.End && second.End >= first.End)
+            return new Line1D(second.Start, first.End);
 
         // range completely in lineToUpdate
-        if (toCheckStart <= lineStart && toCheckEnd >= lineEnd)
-            return new Line1D(lineStart, lineEnd);
+        if (second.Start <= first.Start && second.End >= first.End)
+            return new Line1D(first.Start, first.End);
 
         return null;
     }

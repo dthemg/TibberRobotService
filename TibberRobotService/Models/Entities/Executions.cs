@@ -11,7 +11,7 @@ public class Executions
 
     public int commands { get; set; }
 
-    public int result { get; set; }
+    public long result { get; set; }
 
     public float duration { get; set; }
 }

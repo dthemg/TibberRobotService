@@ -4,7 +4,6 @@ using TibberRobotService.Models;
 using Db = TibberRobotService.Models.Entities;
 namespace TibberRobotService.Services;
 
-
 public class RobotService: IRobotService
 {
     private readonly IRobotMovementRepository _robotMovementRepository;

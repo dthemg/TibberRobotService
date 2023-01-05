@@ -4,6 +4,6 @@ public record RobotMovementSummary(
     Guid Id,
     DateTime Timestamp,
     int Commands,
-    int Result,
+    long Result,
     float Duration
 );

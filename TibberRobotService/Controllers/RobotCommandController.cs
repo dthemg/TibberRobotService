@@ -17,10 +17,17 @@ public class RobotCommandController : ControllerBase
     }
 
     [HttpPost("/tibber-developer-test/enter-path")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<RobotMovementSummary>> MoveRobot([FromBody] MovementRequest movementRequest)
     {
-        var executionSummary = await _robotService.PerformRobotMovement(movementRequest);
-
-        return Ok(executionSummary);
+        try
+        {
+            var executionSummary = await _robotService.PerformRobotMovement(movementRequest);
+            return Ok(executionSummary);
+        } catch (ArgumentException e) 
+        {
+            return BadRequest(e.Message);
+        }
     }
 }

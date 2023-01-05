@@ -13,7 +13,7 @@ public class RobotMovementRepository : IRobotMovementRepository
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<Db.Executions> AddMovementSummary(int numberOfCommands, int uniqueVisitedLocations, float calculationDuration)
+    public async Task<Db.Executions> AddMovementSummary(int numberOfCommands, long uniqueVisitedLocations, float calculationDuration)
     {
         using var dbContext = _dbContextFactory.CreateDbContext();
 
@@ -33,7 +33,10 @@ public class RobotMovementRepository : IRobotMovementRepository
         return await dbContext.executions.ToListAsync();
     }
 
-    private static Db.Executions ToDbModel(int numberOfCommands, int uniqueVisitedLocations, float calculationDuration)
+    private static Db.Executions ToDbModel(
+        int numberOfCommands,
+        long uniqueVisitedLocations,
+        float calculationDuration)
     {
         return new()
         {

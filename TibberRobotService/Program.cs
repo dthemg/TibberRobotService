@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using System.Text.Json.Serialization;
 using TibberRobotService.Interfaces;
 using TibberRobotService.Options;
 using TibberRobotService.Repositories;
@@ -14,6 +16,7 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Database configuration
         var config = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: false)
             .Build();
@@ -33,10 +36,17 @@ public class Program
             options.UseNpgsql(connectionStringBuilder.ConnectionString);
         });
 
+        // Repositories
         builder.Services.AddTransient<IRobotMovementRepository, RobotMovementRepository>();
+        
+        // Services
         builder.Services.AddTransient<IRobotService, RobotService>();
-
-        builder.Services.AddControllers();
+        
+        // Configure controllers
+        builder.Services.AddControllers()
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+        
+        
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
@@ -49,9 +59,7 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-
         app.UseAuthorization();
-
         app.MapControllers();
 
         app.Run();
