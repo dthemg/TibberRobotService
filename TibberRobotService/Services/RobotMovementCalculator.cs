@@ -150,19 +150,19 @@ public class RobotMovementCalculatorService: IRobotMovementCalculatorService
 
     private static Line1D? FindOverlap(Line1D first, Line1D second)
     {
-        // partially inside lower range
+        // second partially in lower range of first
         if (second.Start <= first.Start && second.End >= first.Start && second.End <= first.End)
             return new Line1D(first.Start, second.End);
 
-        // lineToUpdate completely inside range
+        // second completely in first
         if (second.Start >= first.Start && second.End <= first.End)
             return new Line1D(second.Start, second.End);
 
-        // partially inside upper range
+        // second partially in upper range of first
         if (second.Start >= first.Start && second.Start <= first.End && second.End >= first.End)
             return new Line1D(second.Start, first.End);
 
-        // range completely in lineToUpdate
+        // first completely in second
         if (second.Start <= first.Start && second.End >= first.End)
             return new Line1D(first.Start, first.End);
 
