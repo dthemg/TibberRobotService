@@ -16,7 +16,7 @@ returns
 {
     "id": "8dddfdaa-846e-4f1a-b396-66f0a938f864",
     "timestamp": "2023-01-05T23:01:17.2623736Z",
-    "commands": 0,
+    "commands": 2,
     "result": 3,
     "duration": 0.0002332
 }
