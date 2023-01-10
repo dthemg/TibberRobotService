@@ -9,7 +9,7 @@ docker-compose up
 ```
 A request using the example input:
 ```
-curl --location --request POST 'https://localhost:5000/tibber-developer-test/enter-path' --header 'Content-Type: application/json' --data-raw '{"start": {"x": 10,"y": 22},"commmands": [{"direction":"east","steps": 2},{"direction": "north","steps": 1}]}'
+curl --location --request POST 'https://localhost:5000/tibber-developer-test/enter-path' --header 'Content-Type: application/json' --data-raw '{"start": {"x": 10,"y": 22},"commands": [{"direction":"east","steps": 2},{"direction": "north","steps": 1}]}'
 ```
 returns
 ```
